@@ -1,0 +1,168 @@
+import java.util.*;
+import java.io.*;
+
+public class BaiTap4 {
+
+    public static Map<String, Integer> vocab = new HashMap<>();
+    public static Map<String, Integer> corpus = new HashMap<>();
+    public static Map<String, Integer> pairCorpus = new HashMap<>();
+    public static Double[] probs;
+    public static Double[][] conditionalProbs;
+
+    public static void readFile() {
+        try {
+            Vector<String> lines = new Vector<>();
+            File file = new File("UIT-ViOCD (2).txt");
+            Scanner fileScanner = new Scanner(file);
+
+            while (fileScanner.hasNextLine()) {
+                String line = fileScanner.nextLine();
+                lines.addElement(line);
+            }
+            fileScanner.close();
+
+            for (String line : lines) {
+                line = line.replace("\n", "").replace("\r", "").replace("\t", "");
+                line = line.replaceAll("^\\s+", "");
+                line = line.replaceAll("\\s+$", "");
+                line = line.toLowerCase();
+
+                int wordId = 0;
+                String[] words = line.split("\\s+");
+                for (String word : words) {
+                    if (corpus.containsKey(word)) {
+                        corpus.put(word, corpus.get(word) + 1);
+                    } else {
+                        vocab.put(word, wordId);
+                        corpus.put(word, 1);
+                        wordId += 1;
+                    }
+                }
+
+                for (int i = 0; i < words.length - 1; i++) {
+                    String words_ij = words[i] + "_" + words[i + 1];
+                    pairCorpus.put(words_ij, pairCorpus.getOrDefault(words_ij, 0) + 1);
+                }
+            }
+
+            System.out.println("Đã đọc và xử lý dữ liệu từ file UIT-ViOCD (2).txt.");
+            System.out.println("Số từ trong từ điển: " + vocab.size());
+            System.out.println("Tổng số từ trong corpus: " + corpus.size());
+            System.out.println("Tổng số cặp từ liên tiếp: " + pairCorpus.size());
+
+        } catch (FileNotFoundException e) {
+            System.out.println("Không tìm thấy file!");
+            e.printStackTrace();
+        }
+    }
+
+    public static void constructSingleProb() {
+        int totalWords = corpus.values().stream().mapToInt(Integer::intValue).sum();
+        probs = new Double[vocab.size()];
+
+        for (Map.Entry<String, Integer> item : corpus.entrySet()) {
+            String word = item.getKey();
+            Integer count = item.getValue();
+            Integer id = vocab.get(word);
+            probs[id] = (double) count / totalWords;
+        }
+
+        System.out.println("Đã tính xác suất đơn cho từng từ.");
+    }
+
+    public static void constructConditionalProb() {
+        int totalPairs = pairCorpus.values().stream().mapToInt(Integer::intValue).sum();
+        Double[][] jointProbs = new Double[vocab.size()][vocab.size()];
+
+        for (Map.Entry<String, Integer> item_i : corpus.entrySet())
+            for (Map.Entry<String, Integer> item_j : corpus.entrySet()) {
+                String wi = item_i.getKey();
+                String wj = item_j.getKey();
+                int idi = vocab.get(wi);
+                int idj = vocab.get(wj);
+
+                String key_ij = wi + "_" + wj;
+                jointProbs[idi][idj] = pairCorpus.containsKey(key_ij)
+                        ? (double) pairCorpus.get(key_ij) / totalPairs
+                        : 1e-20;
+
+                String key_ji = wj + "_" + wi;
+                jointProbs[idj][idi] = pairCorpus.containsKey(key_ji)
+                        ? (double) pairCorpus.get(key_ji) / totalPairs
+                        : 1e-20;
+            }
+
+        conditionalProbs = new Double[vocab.size()][vocab.size()];
+        for (Map.Entry<String, Integer> item_i : corpus.entrySet())
+            for (Map.Entry<String, Integer> item_j : corpus.entrySet()) {
+                String wi = item_i.getKey();
+                String wj = item_j.getKey();
+                int idi = vocab.get(wi);
+                int idj = vocab.get(wj);
+                conditionalProbs[idi][idj] = jointProbs[idi][idj] / probs[idj];
+                conditionalProbs[idj][idi] = jointProbs[idj][idi] / probs[idi];
+            }
+
+        System.out.println("Đã tính xác suất có điều kiện P(w_i | w_j) cho từng cặp từ.");
+    }
+
+    public static void training() {
+        constructSingleProb();
+        constructConditionalProb();
+        System.out.println("Đã hoàn tất quá trình huấn luyện mô hình.");
+    }
+
+    public static Vector<String> inferring(String w0) {
+        Vector<String> sentence = new Vector<>();
+        sentence.add(w0);
+        Integer idx = vocab.get(w0);
+
+        if (idx == null) {
+            System.out.println("Từ '" + w0 + "' không tồn tại trong từ điển!");
+            w0 = vocab.keySet().iterator().next();
+            idx = vocab.get(w0);
+            System.out.println("Sử dụng từ thay thế: " + w0);
+            sentence.set(0, w0);
+        }
+
+        Double logProb = -Math.log(probs[idx]);
+        for (int t = 1; t <= 5; t++) {
+            String bestWord = "";
+            Double bestLogProb = Double.MAX_VALUE;
+            int bestIdx = -1;
+
+            for (Map.Entry<String, Integer> entry : vocab.entrySet()) {
+                int nextIdx = entry.getValue();
+                double prob = conditionalProbs[idx][nextIdx];
+                double negLog = -Math.log(prob);
+                if (negLog < bestLogProb) {
+                    bestLogProb = negLog;
+                    bestWord = entry.getKey();
+                    bestIdx = nextIdx;
+                }
+            }
+
+            logProb += bestLogProb;
+            sentence.add(bestWord);
+            idx = bestIdx;
+        }
+
+        return sentence;
+    }
+
+    public static void main(String[] args) throws Exception {
+        System.out.println("Đang đọc dữ liệu và huấn luyện mô hình...");
+        readFile();
+        training();
+
+        Scanner sc = new Scanner(System.in);
+        System.out.print("\nNhập từ bắt đầu: ");
+        String startWord = sc.nextLine().toLowerCase();
+
+        Vector<String> generated = inferring(startWord);
+        String result = String.join(" ", generated);
+
+        System.out.println("\nChuỗi từ được sinh ra:");
+        System.out.println(result);
+    }
+}
