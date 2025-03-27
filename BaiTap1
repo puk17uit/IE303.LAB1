@@ -1,0 +1,43 @@
+import java.util.Scanner;
+import java.util.Random;
+
+public class BaiTap1 {
+
+    // Hàm dùng để xấp xỉ giá trị π bằng phương pháp Monte Carlo
+    public static double approximatePi(double radius, int totalPoints) {
+        Random rand = new Random();
+        int pointsInsideCircle = 0;
+
+        for (int i = 0; i < totalPoints; i++) {
+            double x = (2 * rand.nextDouble() - 1) * radius;
+            double y = (2 * rand.nextDouble() - 1) * radius;
+
+            if (x * x + y * y <= radius * radius) {
+                pointsInsideCircle++;
+            }
+        }
+
+        return 4.0 * pointsInsideCircle / totalPoints;
+    }
+
+    // Hàm tính diện tích hình tròn dựa vào giá trị π xấp xỉ
+    public static double calculateCircleArea(double radius, double pi) {
+        return pi * radius * radius;
+    }
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.print("Nhập bán kính r: ");
+        double radius = scanner.nextDouble();
+
+        int totalPoints = 1_000_000;  // 1 triệu điểm
+        double estimatedPi = approximatePi(radius, totalPoints);
+        double area = calculateCircleArea(radius, estimatedPi);
+
+        System.out.printf("Giá trị π xấp xỉ: %.6f\n", estimatedPi);
+        System.out.printf("Diện tích hình tròn bán kính %.2f là: %.6f\n", radius, area);
+
+        scanner.close();
+    }
+}
