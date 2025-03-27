@@ -1,0 +1,81 @@
+import java.util.*;
+
+public class BaiTap3 {
+
+    // Lớp biểu diễn một điểm (trạm phát sóng)
+    static class Point implements Comparable<Point> {
+        int x, y;
+
+        Point(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        public int compareTo(Point p) {
+            if (this.x != p.x) return this.x - p.x;
+            return this.y - p.y;
+        }
+
+        public String toString() {
+            return "(" + x + ", " + y + ")";
+        }
+    }
+
+    // Hàm tính cross product: dùng để xác định hướng rẽ (trái, phải, thẳng)
+    public static long cross(Point O, Point A, Point B) {
+        return (long)(A.x - O.x) * (B.y - O.y) - (long)(A.y - O.y) * (B.x - O.x);
+    }
+
+    // Thuật toán Andrew để tìm bao lồi (convex hull)
+    public static List<Point> convexHull(Point[] points) {
+        if (points.length <= 1) return Arrays.asList(points);
+
+        Arrays.sort(points); // sắp xếp theo x rồi đến y
+        List<Point> lower = new ArrayList<>();
+        for (Point p : points) {
+            while (lower.size() >= 2 && cross(lower.get(lower.size() - 2), lower.get(lower.size() - 1), p) <= 0) {
+                lower.remove(lower.size() - 1);
+            }
+            lower.add(p);
+        }
+
+        List<Point> upper = new ArrayList<>();
+        for (int i = points.length - 1; i >= 0; i--) {
+            Point p = points[i];
+            while (upper.size() >= 2 && cross(upper.get(upper.size() - 2), upper.get(upper.size() - 1), p) <= 0) {
+                upper.remove(upper.size() - 1);
+            }
+            upper.add(p);
+        }
+
+        lower.remove(lower.size() - 1);
+        upper.remove(upper.size() - 1);
+        lower.addAll(upper); // hợp nhất hai phần
+
+        return lower;
+    }
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        int n;
+
+        System.out.print("Nhập số lượng trạm phát sóng: ");
+        n = scanner.nextInt();
+        Point[] points = new Point[n];
+
+        System.out.println("Nhập tọa độ cho từng trạm:");
+        for (int i = 0; i < n; i++) {
+            System.out.printf("Nhập tọa độ cho trạm thứ %d (x y): ", i + 1);
+            int x = scanner.nextInt();
+            int y = scanner.nextInt();
+            points[i] = new Point(x, y);
+        }
+
+        List<Point> hull = convexHull(points);
+
+        System.out.println("\nCác trạm được chọn làm trạm cảnh báo là:");
+        for (Point p : hull) {
+            System.out.println(p);
+        }
+    }
+}
